@@ -29,7 +29,7 @@ export async function _get<ScopedValue extends Value>(
 	remove: boolean,
 ): Promise<CachedValue<ScopedValue> | undefined> {
 	const internalKey = `cache:${key}`;
-	const storageData: Record<string, CachedValue<ScopedValue>> = await chromeP.storage.local.get(internalKey);
+	const storageData: Cache<ScopedValue> = await chromeP.storage.local.get(internalKey);
 	const cachedItem = storageData[internalKey];
 
 	if (cachedItem === undefined) {
@@ -87,11 +87,18 @@ async function delete_(userKey: string): Promise<void> {
 async function deleteWithLogic(
 	logic?: (x: CachedValue<Value>) => boolean,
 ): Promise<void> {
-	const wholeCache: Cache = await chromeP.storage.local.get();
-	const removableItems: string[] = [];
-	for (const [key, value] of Object.entries(wholeCache)) {
-		if (key.startsWith('cache:') && (logic?.(value) ?? true)) {
-			removableItems.push(key);
+	let removableItems: string[] = [];
+	// `getKeys`: https://github.com/w3c/webextensions/issues/601#issuecomment-2434544881
+	const allKeys = await chrome.storage.local.getKeys?.() ?? [];
+	const cacheKeys = allKeys.filter(key => key.startsWith('cache:'));
+	if (!logic && typeof chrome.storage.local.getKeys === 'function') {
+		removableItems = cacheKeys;
+	} else {
+		const wholeCache: Cache = await chromeP.storage.local.get(cacheKeys);
+		for (const [key, value] of Object.entries(wholeCache)) {
+			if (key.startsWith('cache:') && (logic?.(value) ?? true)) {
+				removableItems.push(key);
+			}
 		}
 	}
 
