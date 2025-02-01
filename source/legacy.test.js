@@ -101,17 +101,28 @@ test('set() with value', async () => {
 
 describe.each([
 	'legacy',
-	'getKeys',
+	// 'getKeys',
 ])('%s', async method => {
 	// WARNING: THIS IS NOT WORKING. It probably needs to be implemented via plugins
 	// TODO: https://github.com/acvetkov/sinon-chrome#plugins
+	// https://github.com/acvetkov/sinon-chrome/issues/113
 	chrome.storage.local.getKeys = method === 'getKeys' ? sinon.stub(async () => {
 		const whole = await chrome.storage.local.get();
 		return Object.keys(whole);
 	}) : undefined;
 
 	test('clear() with empty storage', async () => {
+		// Early sanity check
+		if (method === 'getKeys') {
+			t.is(chrome.storage.local.getKeys.callCount, 0);
+		}
+
 		await cache.clear();
+
+		if (method === 'getKeys') {
+			t.is(chrome.storage.local.getKeys.callCount, 1);
+		}
+
 		t.is(chrome.storage.local.remove.callCount, 0);
 	});
 
